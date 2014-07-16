@@ -46,7 +46,8 @@ Server.prototype.setTimeout = function(msecs, callback) {
 function connectionListener(socket) {
   var self = this;
   socket.ondata = function(d, start, end) {
-    if (d[start] < 32) {
+    var firstByte = d[start];
+    if (firstByte < 32 || firstByte >= 127) {
       // tls/ssl
       socket.ondata = null;
       self._tlsHandler(socket);
