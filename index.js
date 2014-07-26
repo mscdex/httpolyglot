@@ -3,6 +3,8 @@ var http = require('http'),
     inherits = require('util').inherits,
     httpSocketHandler = http._connectionListener;
 
+var isOldNode = /^v0\.10\./.test(process.version);
+
 function Server(tlsconfig, requestListener) {
   if (!(this instanceof Server))
     return new Server(tlsconfig, requestListener);
@@ -26,6 +28,7 @@ function Server(tlsconfig, requestListener) {
       this._tlsHandler = connev[connev.length - 1];
     this.removeListener('connection', this._tlsHandler);
 
+    this._connListener = connectionListener;
     this.on('connection', connectionListener);
     this.on('secureConnection', httpSocketHandler);
 
@@ -46,18 +49,40 @@ Server.prototype.setTimeout = function(msecs, callback) {
 
 Server.prototype.__httpSocketHandler = httpSocketHandler;
 
-function connectionListener(socket) {
-  var self = this;
-  socket.ondata = function(d, start, end) {
-    var firstByte = d[start];
-    if (firstByte < 32 || firstByte >= 127) {
-      // tls/ssl
-      socket.ondata = null;
-      self._tlsHandler(socket);
-      socket.push(d.slice(start, end));
+var connectionListener;
+if (isOldNode) {
+  connectionListener = function(socket) {
+    var self = this;
+    socket.ondata = function(d, start, end) {
+      var firstByte = d[start];
+      if (firstByte < 32 || firstByte >= 127) {
+        // tls/ssl
+        socket.ondata = null;
+        self._tlsHandler(socket);
+        socket.push(d.slice(start, end));
+      } else {
+        self.__httpSocketHandler(socket);
+        socket.ondata(d, start, end);
+      }
+    };
+  };
+} else {
+  connectionListener = function(socket) {
+    var self = this,
+        data;
+    data = socket.read(1);
+    if (data === null) {
+      socket.once('readable', function() {
+        self._connListener(socket);
+      });
     } else {
-      self.__httpSocketHandler(socket);
-      socket.ondata(d, start, end);
+      var firstByte = data[0];
+      socket.unshift(data);
+      if (firstByte < 32 || firstByte >= 127) {
+        // tls/ssl
+        this._tlsHandler(socket);
+      } else
+        this.__httpSocketHandler(socket);
     }
   };
 }
