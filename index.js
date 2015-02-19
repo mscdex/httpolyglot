@@ -30,7 +30,6 @@ function Server(tlsconfig, requestListener) {
 
     this._connListener = connectionListener;
     this.on('connection', connectionListener);
-    this.on('secureConnection', httpSocketHandler);
 
     // copy from http.Server
     this.timeout = 2 * 60 * 1000;
