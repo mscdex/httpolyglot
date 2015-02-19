@@ -1,5 +1,5 @@
 { "name": "httpolyglot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Brian White <mscdex@mscdex.net>",
   "description": "Serve http and https connections over the same port with node.js",
   "main": "./index",
